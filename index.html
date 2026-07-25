@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>作文カウンター｜文字数・原稿用紙</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Sans", "Yu Gothic", sans-serif;
+    margin: 0;
+    background: #eef2f6;
+    color: #2b3138;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    background: #3f8ecc;
+    color: #fff;
+    padding: 14px 20px;
+  }
+  header h1 { margin: 0; font-size: 19px; }
+  header p { margin: 4px 0 0; font-size: 12px; opacity: .9; }
+
+  main {
+    flex: 1;
+    max-width: 860px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* --- 目標バー --- */
+  .goal {
+    background: #fff;
+    border: 2px solid #e3e9ef;
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .goal-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 14px;
+  }
+  .goal-top input {
+    width: 90px;
+    padding: 6px 8px;
+    font-size: 15px;
+    border: 2px solid #d0d7de;
+    border-radius: 6px;
+  }
+  .goal-status { margin-left: auto; font-weight: bold; font-size: 15px; }
+  .bar-track {
+    margin-top: 10px;
+    height: 14px;
+    background: #eaeef2;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    width: 0%;
+    background: #4caf82;
+    border-radius: 8px;
+    transition: width .2s, background .2s;
+  }
+
+  /* --- カウント表示 --- */
+  .counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .count-box {
+    flex: 1;
+    min-width: 120px;
+    background: #fff;
+    border: 2px solid #e3e9ef;
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+  .count-box.main .num { color: #3f8ecc; }
+  .count-box .num { font-size: 26px; font-weight: bold; }
+  .count-box .sub { font-size: 15px; font-weight: bold; color: #3f8ecc; }
+  .count-box .label { font-size: 12px; color: #7c8791; margin-top: 4px; }
+
+  textarea {
+    width: 100%;
+    min-height: 300px;
+    flex: 1;
+    padding: 16px;
+    font-size: 16px;
+    line-height: 1.8;
+    border: 2px solid #d0d7de;
+    border-radius: 12px;
+    resize: vertical;
+    outline: none;
+  }
+  textarea:focus { border-color: #3f8ecc; }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  button {
+    background: #3f8ecc; color: #fff; border: none;
+    padding: 10px 18px; font-size: 15px; border-radius: 8px; cursor: pointer;
+  }
+  button:hover { background: #3179b0; }
+  button.gray { background: #8a97a3; }
+  button.gray:hover { background: #76828d; }
+  .saved-note { font-size: 13px; color: #4caf82; margin-left: auto; }
+  footer { text-align: center; font-size: 12px; color: #9aa4ad; padding: 14px; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>✍️ 作文カウンター</h1>
+    <p>文字数・原稿用紙の枚数・目標をチェックしながら作文が書けるよ</p>
+  </header>
+
+  <main>
+    <!-- 目標文字数 -->
+    <div class="goal">
+      <div class="goal-top">
+        <label>目標
+          <input type="number" id="goalInput" min="0" step="100" value="800">
+          文字
+        </label>
+        <span class="goal-status" id="goalStatus">あと 800 文字</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="barFill"></div></div>
+    </div>
+
+    <!-- カウント -->
+    <div class="counts">
+      <div class="count-box main">
+        <div class="num" id="charCount">0</div>
+        <div class="label">文字数（全部）</div>
+      </div>
+      <div class="count-box">
+        <div class="num" id="charNoSpace">0</div>
+        <div class="label">空白ぬき</div>
+      </div>
+      <div class="count-box">
+        <div class="sub" id="genko">0枚と0行</div>
+        <div class="label">原稿用紙（400字）</div>
+      </div>
+      <div class="count-box">
+        <div class="num" id="paraCount">0</div>
+        <div class="label">段落の数</div>
+      </div>
+      <div class="count-box">
+        <div class="num" id="lineCount">0</div>
+        <div class="label">行数</div>
+      </div>
+    </div>
+
+    <textarea id="memo" placeholder="ここに作文を書いてね…"></textarea>
+
+    <div class="toolbar">
+      <button onclick="copyText()">コピー</button>
+      <button class="gray" onclick="clearText()">全部消す</button>
+      <span class="saved-note" id="savedNote"></span>
+    </div>
+  </main>
+
+  <footer>入力した文章はこのパソコンの中だけに自動保存されます（ネットには送られません）</footer>
+
+<script>
+  const memo = document.getElementById('memo');
+  const goalInput = document.getElementById('goalInput');
+  const el = id => document.getElementById(id);
+
+  // 起動時：前回の文章と目標を復元
+  memo.value = localStorage.getItem('memoText') || '';
+  goalInput.value = localStorage.getItem('memoGoal') || '800';
+
+  function update() {
+    const text = memo.value;
+
+    // 文字数（絵文字も1文字として数える）
+    const total = [...text].length;
+    const noSpace = [...text.replace(/\s/g, '')].length;
+
+    el('charCount').textContent = total;
+    el('charNoSpace').textContent = noSpace;
+
+    // 原稿用紙（400字づめ = 20字×20行）… 枚数と、そのはんぱの行数
+    const sheets = Math.floor(total / 400);
+    const rows = Math.ceil((total % 400) / 20);
+    el('genko').textContent = sheets + '枚と' + rows + '行';
+
+    // 行数
+    el('lineCount').textContent = text === '' ? 0 : text.split('\n').length;
+
+    // 段落の数（空行で区切られたまとまり。中身のある段落だけ数える）
+    const paras = text.split(/\n\s*\n/).filter(p => p.trim() !== '');
+    el('paraCount').textContent = paras.length;
+
+    // 目標バー
+    const goal = Number(goalInput.value) || 0;
+    const fill = el('barFill');
+    if (goal > 0) {
+      const percent = Math.min(100, (total / goal) * 100);
+      fill.style.width = percent + '%';
+      if (total >= goal) {
+        fill.style.background = '#4caf82';
+        el('goalStatus').textContent = '目標たっせい！🎉（+' + (total - goal) + '）';
+      } else {
+        fill.style.background = '#f0a04b';
+        el('goalStatus').textContent = 'あと ' + (goal - total) + ' 文字';
+      }
+    } else {
+      fill.style.width = '0%';
+      el('goalStatus').textContent = '目標を入れてね';
+    }
+
+    // 自動保存
+    localStorage.setItem('memoText', text);
+    localStorage.setItem('memoGoal', goalInput.value);
+    el('savedNote').textContent = '自動保存しました ✓';
+  }
+
+  function copyText() {
+    navigator.clipboard.writeText(memo.value)
+      .then(() => el('savedNote').textContent = 'コピーしました ✓');
+  }
+
+  function clearText() {
+    if (confirm('本当に全部消しますか？')) {
+      memo.value = '';
+      update();
+    }
+  }
+
+  memo.addEventListener('input', update);
+  goalInput.addEventListener('input', update);
+  update();
+</script>
+</body>
+</html>
